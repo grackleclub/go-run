@@ -13,11 +13,13 @@ else
   target_dir="$1"
 fi
 
+VERSION="v0.5.0"
+
 # separate output from this script from the Go program
 # by providing a terminal-wide line break with sytlized text
 line_break() {
   local title
-  title=$(printf " %s %s %s " "$1" "$0" "$1")
+  title=$(printf " %s %s %s " "$1" "$0" $VERSION "$1")
   local width
   width=$(tput cols)
   local title_length=$(( ${#title} + 2 ))

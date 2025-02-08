@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+current=$(git tag --sort=-creatordate | head -n 1)
+
+if [[ -z "$current" ]]; then
+    echo "No tags detected. Exiting..."
+    exit 1
+else
+    echo "Tag detected: $current"
+fi
+new="VERSION=\"$current\""
+
+# see if that version is already current in go-run
+if grep -q "$new" go-run; then
+    echo "Version is already up to date. Exiting..."
+    exit 0
+fi
+
+echo "Updating version to: $new"
+sed -i "s/^VERSION=.*$/$new/" go-run
