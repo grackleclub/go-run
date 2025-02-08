@@ -7,7 +7,7 @@ While live-reload tools in the code editor work great for rendering plain `html`
 
 ## Features
 - accepts arbitrary arguments and passes them through
-- lists detected file change
+- lists detected file changes
 - stops upon program termination or signal interrupt
 - preserves exit codes in all scenarios
 
