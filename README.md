@@ -1,5 +1,5 @@
 # go-run
-`go-run` is a simple bash script that monitors for file change timestamps and reloads on changes.
+`go-run` is a simple bash script that monitors for file change and reloads automatically.
 
 While live-reload tools in the code editor work great for rendering plain `html`+`css`, Go projects utilizing templates require tedious manual reloading. `go-run` automates this.
 
@@ -25,6 +25,11 @@ chmod +x go-run
 Make the script globally executable (optional):
 ```sh
 sudo mv go-run /usr/local/bin
+```
+
+Verify installation:
+```sh
+go-run version
 ```
 
 > [!TIP]
