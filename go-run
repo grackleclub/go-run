@@ -6,19 +6,63 @@
 
 # PID for the active instance of the Go program
 app_pid=""
+VERSION="v1.0.0"
 
+# running go-run without args targets the current directory
 if [[ -z "$1" ]]; then
   target_dir="."
 else
   target_dir="$1"
 fi
 
-VERSION="v1.0.0"
 
-if [[ "$1" == "-v" || "$1" == "--version" || "$1" == "version" ]]; then
+help() {
+    echo "Usage: go-run [target]|version|update|help"
+    echo
+    echo "  [target]:   name the directory containing Go program to run"
+    echo "  version:    print the version of go-run"
+    echo "  update:     update go-run to the latest version"
+    echo "  help:       print this help message"
+    echo
+    exit 0
+}
+
+version() {
   echo "go-run $VERSION"
+}
+
+update() {
+  version
+  echo "Updating go-run..."
+  if ! curl -s https://raw.githubusercontent.com/grackleclub/go-run/main/go-run > "$0"; then
+    echo "Failed to update go-run"
+    return 1
+  fi
+  chmod +x "$0"
+  echo "go-run updated"
+  version
+  return 0
+}
+
+# help
+if [[ "$1" == "-h" || "$1" == "--help" || "$1" == "help" ]]; then
+  help
+fi
+
+# version
+if [[ "$1" == "-v" || "$1" == "--version" || "$1" == "version" ]]; then
+    echo "go-run $VERSION"
+    exit 0
+fi
+
+## update
+if [[ "$1" == "update" ]]; then
+  if ! update; then
+    exit 1
+  fi
   exit 0
 fi
+
 
 # separate output from this script from the Go program
 # by providing a terminal-wide line break with sytlized text
