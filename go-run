@@ -15,6 +15,11 @@ fi
 
 VERSION="v1.0.0"
 
+if [[ "$1" == "-v" || "$1" == "--version" || "$1" == "version" ]]; then
+  echo "go-run $VERSION"
+  exit 0
+fi
+
 # separate output from this script from the Go program
 # by providing a terminal-wide line break with sytlized text
 line_break() {
