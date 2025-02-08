@@ -31,8 +31,12 @@ sudo mv go-run /usr/local/bin
 > `go-run` can be scoped to the project, and optimally kept in a `bin` directory, consolidated with other tools, so that it may be run as `bin/go-run`. Use the optional step of moving the script to `/usr/local/bin` to make `go-run` directly executable from anywhere.
 
 ## Demo and Testing Options
-Demo the project using the [example](./example/) module, as shown below:
-![gif](./example.gif)
+Demo the project using the [example](./example/) module:
+![example-demonstration](./gifs/example.gif)
+
+## Updating
+Run `go-run update` to update:
+![example-update](./gifs/update.gif)
 
 ## Feedback
 😎 Open a [pull requests](https://github.com/grackleclub/go-run/pulls)!
