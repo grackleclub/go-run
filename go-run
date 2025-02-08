@@ -41,7 +41,7 @@ update() {
   fi
   chmod +x "$0"
   echo "go-run updated"
-  version
+  "$0" version
   return 0
 }
 
