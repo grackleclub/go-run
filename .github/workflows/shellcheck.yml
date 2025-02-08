@@ -1,0 +1,18 @@
+name: Shellcheck
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Shellcheck
+      run: |
+        shellcheck go-run
+        shellcheck update-version
