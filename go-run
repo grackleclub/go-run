@@ -7,6 +7,7 @@
 # PID for the active instance of the Go program
 app_pid=""
 VERSION="v1.0.0"
+update_target="https://raw.githubusercontent.com/grackleclub/go-run/main/go-run"
 
 # running go-run without args targets the current directory
 if [[ -z "$1" ]]; then
@@ -34,7 +35,7 @@ version() {
 update() {
   version
   echo "Updating go-run..."
-  if ! curl -s https://raw.githubusercontent.com/grackleclub/go-run/main/go-run > "$0"; then
+  if ! curl -s "$update_target" > "$0"; then
     echo "Failed to update go-run"
     return 1
   fi
