@@ -1,10 +1,9 @@
 # go-run
-[![Update Version](https://github.com/grackleclub/go-run/actions/workflows/version.yml/badge.svg)](https://github.com/grackleclub/go-run/actions/workflows/version.yml)
-
 `go-run` is a simple bash script that monitors for file change timestamps.
 
 While, code editor based live-reload tools work great for rendering plain `html`+`css`, Go projects utilizing templates require tedious manual reloading. `go-run` automates this tedium.
 
+[![Shellcheck](https://github.com/grackleclub/go-run/actions/workflows/shellcheck.yml/badge.svg)](https://github.com/grackleclub/go-run/actions/workflows/shellcheck.yml) [![Update Version](https://github.com/grackleclub/go-run/actions/workflows/version.yml/badge.svg)](https://github.com/grackleclub/go-run/actions/workflows/version.yml)
 
 ## Features
 - accepts and passes arbitrary arguments
