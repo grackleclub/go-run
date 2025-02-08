@@ -1,0 +1,17 @@
+name: Update Version
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+    - uses: stefanzweifel/git-auto-commit-action@v5
+      with:
+        commit-message: bump version
+    - name: Update go-run version
+      run: ./update-version
