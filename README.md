@@ -6,9 +6,9 @@ While live-reload tools in the code editor work great for rendering plain `html`
 [![Shellcheck](https://github.com/grackleclub/go-run/actions/workflows/shellcheck.yml/badge.svg)](https://github.com/grackleclub/go-run/actions/workflows/shellcheck.yml) [![Update Version](https://github.com/grackleclub/go-run/actions/workflows/version.yml/badge.svg)](https://github.com/grackleclub/go-run/actions/workflows/version.yml)
 
 ## Features
-- accepts and passes arbitrary arguments
+- accepts arbitrary arguments and passes them through
 - lists detected file change
-- stops upop program termination or signal interrupt
+- stops upon program termination or signal interrupt
 - preserves exit codes in all scenarios
 
 ## Getting Started on Linux
