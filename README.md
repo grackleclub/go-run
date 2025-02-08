@@ -14,7 +14,7 @@ While live-reload tools in the code editor work great for rendering plain `html`
 ## Getting Started on Linux
 Copy the file and give it permission to run:
 ```sh
-curl -O https://raw.githubusercontent.com/grackleclub/go-run/refs/heads/main/go-run
+curl -o go-run https://raw.githubusercontent.com/grackleclub/go-run/refs/heads/main/go-run
 ```
 
 Make the script executable:
