@@ -6,7 +6,7 @@
 
 # PID for the active instance of the Go program
 app_pid=""
-VERSION="v1.0.0"
+VERSION="v1.1.0"
 update_target="https://raw.githubusercontent.com/grackleclub/go-run/main/go-run"
 
 # running go-run without args targets the current directory
