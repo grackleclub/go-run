@@ -1,6 +1,7 @@
 # go-run
-
 `go-run` is a simple bash script that monitors for file change timestamps.
+
+While, code editor based live-reload tools work great for rendering plain `html`+`css`, Go projects utilizing templates require tedious manual reloading. `go-run` automates this tedium.
 
 ## Features
 - accepts and passes arbitrary arguments
@@ -8,26 +9,28 @@
 - stops upop program termination or signal interrupt
 - preserves exit codes in all scenarios
 
-## Getting Started
-### bash
+## Getting Started on Linux
 Copy the file and give it permission to run:
 ```sh
-curl -O $URL $OUTPUT; chmod +x $OUTPUT # TODO make this real
+curl -O https://raw.githubusercontent.com/grackleclub/go-run/refs/heads/main/go-run
 ```
 
-Run the program anywhere you'd normally use `go run`, replacing `./go-run`:
+Make the script executable:
 ```sh
-go run ./example
+chmod +x go-run
+```
+
+Make the script globally executable (optional):
+```sh
+sudo mv go-run /usr/local/bin
 ```
 
 > [!TIP]
-> `go-run` is optimally kept in a `bin` directory, consolidated with other tools, so that it may be run as `go-run`
+> `go-run` can be scoped to the project, and optimally kept in a `bin` directory, consolidated with other tools, so that it may be run as `bin/go-run`. Use the optional step of moving the script to `/usr/local/bin` to make `go-run` directly executable from anywhere.
 
 ## Demo and Testing Options
 Demo the project using the [example](./example/) module, as shown below:
 ![gif](./example.gif)
 
-
-## Why?
-
-Code editor based live-reload tools work great for rendering plain `html`+`css`, but when Go templates must be rendered, the typical process of manually reloading is tedious.
+## Feedback
+😎 Open a [branch](https://github.com/grackleclub/go-run/branches) and make a pull request!
