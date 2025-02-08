@@ -1,7 +1,5 @@
 # go-run
 
-go live reload - automatically on file changes
-
 `go-run` is a simple bash script that monitors for file change timestamps.
 
 ## Features
