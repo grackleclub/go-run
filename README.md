@@ -39,4 +39,4 @@ Run `go-run update` to update:
 ![example-update](./gifs/update.gif)
 
 ## Feedback
-😎 Open a [pull requests](https://github.com/grackleclub/go-run/pulls)!
+😎 Open a [pull request](https://github.com/grackleclub/go-run/pulls)!
