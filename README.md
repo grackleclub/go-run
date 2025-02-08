@@ -33,4 +33,4 @@ Demo the project using the [example](./example/) module, as shown below:
 ![gif](./example.gif)
 
 ## Feedback
-😎 Open a [branch](https://github.com/grackleclub/go-run/branches) and make a pull request!
+😎 Open a [pull requests](https://github.com/grackleclub/go-run/pulls)!
