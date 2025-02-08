@@ -13,7 +13,7 @@ else
   target_dir="$1"
 fi
 
-VERSION="v0.6.1"
+VERSION="v0.7.0"
 
 # separate output from this script from the Go program
 # by providing a terminal-wide line break with sytlized text
