@@ -12,6 +12,6 @@ jobs:
       uses: actions/checkout@v2
     - uses: stefanzweifel/git-auto-commit-action@v5
       with:
-        commit-message: bump version
+        commit_message: bump version
     - name: Update go-run version
       run: ./update-version
