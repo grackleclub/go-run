@@ -1,0 +1,1 @@
+echo ffmpeg -i /home/turk/Videos/Screencasts/example.webm -vf fps=30,scale=1080:-1:flags=lanczos -c:v gif example.gif
