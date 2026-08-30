@@ -6,10 +6,9 @@ on:
   push:
     paths:
       - go-run
-      - update-version
 
 jobs:
-  update-version:
+  shellcheck:
     runs-on: ubuntu-latest
     steps:
 
@@ -17,6 +16,4 @@ jobs:
       uses: actions/checkout@v2
 
     - name: Shellcheck
-      run: |
-        shellcheck go-run
-        shellcheck update-version
+      run: shellcheck go-run

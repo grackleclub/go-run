@@ -17,6 +17,7 @@ jobs:
     uses: ./.github/workflows/shellcheck.yml
 
   release:
+    needs: shellcheck
     runs-on: ubuntu-latest
     steps:
 
@@ -33,16 +34,11 @@ jobs:
           exit 1
         fi
 
-    - name: Verify go-run matches the tag
+    # the tag is the version; stamp it into the packaged copy
+    - name: Set version from the tag
       env:
         VERSION: ${{ github.ref_name }}
-      run: |
-        if ! grep -qxF "VERSION=\"$VERSION\"" go-run; then
-          echo "go-run does not carry $VERSION:" >&2
-          grep -n '^VERSION=' go-run >&2
-          echo "Fix on main with: ./update-version $VERSION" >&2
-          exit 1
-        fi
+      run: sed -i "s|^VERSION=.*|VERSION=\"$VERSION\"|" go-run
 
     # go-run is a portable shell script, but mise, brew, et al.
     # pick an asset by platform-matching its NAME, then take
