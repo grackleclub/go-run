@@ -3,8 +3,7 @@
 # update-version writes a release version into the VERSION line of go-run.
 #
 # The version is passed in rather than discovered with `git describe`, so the
-# release workflow can bump and commit BEFORE creating the tag. Discovering it
-# from the latest tag is what left every tag holding the previous version.
+# release workflow can bump and commit BEFORE creating the tag.
 
 set -euo pipefail
 
