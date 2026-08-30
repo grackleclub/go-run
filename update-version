@@ -1,20 +1,47 @@
 #!/usr/bin/env bash
 
-current=$(git describe --tags --abbrev=0)
+# update-version writes a release version into the VERSION line of go-run.
+#
+# The version is passed in rather than discovered with `git describe`, so the
+# release workflow can bump and commit BEFORE creating the tag.
 
-if [[ -z "$current" ]]; then
-    echo "No tags detected. Exiting..."
+set -euo pipefail
+
+version="${1:-}"
+
+# Validate before writing: this runs from the release workflow with a
+# hand-typed input, and an unchecked value would be committed and then
+# tagged. Semver with an optional pre-release suffix is all we publish.
+if [[ ! "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
+    echo "usage: update-version <version>  (e.g. v1.2.0)" >&2
     exit 1
-else
-    echo "Tag detected: $current"
 fi
-new="VERSION=\"$current\""
+
+new="VERSION=\"$version\""
 
 # see if that version is already current in go-run
-if grep -q "$new" go-run; then
+if grep -qxF "$new" go-run; then
     echo "Version is already up to date. Exiting..."
     exit 0
 fi
 
 echo "Updating version to: $new"
-sed -i "s/^VERSION=.*$/$new/" go-run
+
+# awk, not sed: sed reads & and | in the replacement text as syntax, so a
+# version containing either would silently corrupt the line or error out.
+# awk prints the variable literally.
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+
+if ! awk -v new="$new" '
+    /^VERSION=/ { print new; found = 1; next }
+    { print }
+    END { if (!found) exit 1 }
+' go-run > "$tmp"; then
+    echo "No VERSION line found in go-run" >&2
+    exit 1
+fi
+
+chmod +x "$tmp"
+mv "$tmp" go-run
+trap - EXIT

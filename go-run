@@ -6,24 +6,17 @@
 
 # PID for the active instance of the Go program
 app_pid=""
-VERSION="v1.1.6"
+VERSION="v1.2.0"
 update_target="https://raw.githubusercontent.com/grackleclub/go-run/main/go-run"
 
-# running go-run without args targets the current directory
-if [[ -z "$1" ]]; then
-  target_dir="."
-else
-  target_dir="$1"
-fi
-
-
 help() {
-    echo "Usage: go-run [target]|version|update|help"
+    echo "Usage: go-run [target] [arguments...]|version|update|help"
     echo
-    echo "  [target]:   name the directory containing Go program to run"
-    echo "  version:    print the version of go-run"
-    echo "  update:     update go-run to the latest version"
-    echo "  help:       print this help message"
+    echo "  [target]:     directory containing the Go program to run"
+    echo "  [arguments]:  passed through to the Go program, as with 'go run'"
+    echo "  version:      print the version of go-run"
+    echo "  update:       update go-run to the latest version"
+    echo "  help:         print this help message"
     echo
     exit 0
 }
@@ -34,12 +27,43 @@ version() {
 
 update() {
   version
+  # a managed install is owned by its package manager: overwriting it
+  # in place leaves the manager reporting a version it no longer has.
+  case "$0" in
+    */mise/installs/* | */.asdf/* | */Cellar/* | */homebrew/*)
+      echo "go-run looks package-managed: $0"
+      echo "Update it with that tool instead (e.g. 'mise upgrade go-run')."
+      return 1
+      ;;
+  esac
   echo "Updating go-run..."
-  if ! curl -s "$update_target" > "$0"; then
-    echo "Failed to update go-run"
+  # Download beside "$0" and rename into place. Redirecting onto "$0"
+  # truncates the script before curl runs, and bash reads a script
+  # incrementally, so a failed transfer can leave the running shell
+  # reading a half-written file. Staging in the same directory keeps
+  # the final move a rename rather than a copy.
+  local tmp
+  if ! tmp=$(mktemp "$0.XXXXXX"); then
+    echo "Failed to stage an update next to $0"
     return 1
   fi
-  chmod +x "$0"
+  # -f, because plain curl exits 0 on an HTTP error and writes the
+  # error body: without it, a moved URL installs "404: Not Found".
+  if ! curl -fsSL "$update_target" -o "$tmp"; then
+    echo "Failed to download go-run from $update_target"
+    rm -f "$tmp"
+    return 1
+  fi
+  if ! head -n 1 "$tmp" | grep -qxF '#!/usr/bin/env bash'; then
+    echo "Downloaded file does not look like go-run"
+    rm -f "$tmp"
+    return 1
+  fi
+  if ! chmod +x "$tmp" || ! mv "$tmp" "$0"; then
+    echo "Failed to install the downloaded go-run to $0"
+    rm -f "$tmp"
+    return 1
+  fi
   echo "go-run updated"
   "$0" version
   return 0
@@ -64,14 +88,61 @@ if [[ "$1" == "update" ]]; then
   exit 0
 fi
 
+# the first argument names the target directory and is consumed here;
+# everything left in "$@" belongs to the Go program, matching how
+# `go run . -flag` passes -flag to the program rather than to go.
+# Read after the subcommands above so `go-run version` still works.
+if [[ -z "$1" ]]; then
+  target_dir="."
+else
+  target_dir="$1"
+  shift
+fi
+
+# `go build example` resolves as an import path and errs "not in std";
+# go wants ./example for a directory.
+# Rewrite only a real dir.
+if [[ -d "$target_dir" && "$target_dir" != /* && "$target_dir" != .* ]]; then
+  target_dir="./$target_dir"
+fi
+
+# build outside the working tree so the binary neither lands in the
+# caller's repo nor trips the file watcher below
+if ! tmp_dir=$(mktemp -d); then
+  echo "❌ Could not create a temp directory for the build"
+  exit 1
+fi
+app_bin="$tmp_dir/app"
+
+# clean up on exit, regardless of cause.
+# Set once, at top level, so an early failure doesn't leak the dir
+trap 'printf "🚮 Cleaning up temp binary on exit...";
+  rm -rf "$tmp_dir";
+  printf "bye!\n"' EXIT
+
+# shut the Go program down before leaving, and wait for it, so a
+# program with its own graceful shutdown gets to finish. TERM is
+# trapped alongside INT so a supervisor cannot orphan the child.
+trap 'echo;
+  line_break 🚧;
+  printf "⛔ Cancelling...\n";
+  if [[ -n "$app_pid" ]]; then
+    kill "$app_pid" 2>/dev/null;
+    wait "$app_pid" 2>/dev/null;
+  fi;
+  exit' INT TERM
+
 
 # separate output from this script from the Go program
 # by providing a terminal-wide line break with sytlized text
 line_break() {
   local title
-  title=$(printf " %s %s %s " "$1" "$0" $VERSION "$1")
+  title=$(printf " %s %s %s %s " "$1" "$0" "$VERSION" "$1")
   local width
-  width=$(tput cols)
+  # tput fails when stdout is not a terminal (piped, CI); fall back to a
+  # sane width rather than failing the arithmetic below on an empty value
+  width=$(tput cols 2>/dev/null) || true
+  [[ "$width" =~ ^[0-9]+$ ]] || width=80
   local title_length=$(( ${#title} + 2 ))
   local fill_length=$(( (width - title_length) / 2 ))
   printf '%*s' "$fill_length" '' | tr ' ' '-'
@@ -79,20 +150,30 @@ line_break() {
   printf '%*s\n' "$fill_length" '' | tr ' ' '-'
 }
 
-# use time of last save and list of all files to detect changes
+# use time of last save and list of all files to detect changes.
+# inside a repo, ask git for the file list so .gitignore is honored:
+# build caches like elm-stuff and node_modules should not trigger a
+# rebuild. --others --exclude-standard keeps new, unignored files.
 state() {
-  find ./* -type f -not -name "temp" -exec stat -c "%Y %n" {} \;
+  if git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+    git ls-files --cached --others --exclude-standard -z |
+      xargs -0 -r stat -c "%Y %n" 2> /dev/null
+  else
+    find ./* -type f -exec stat -c "%Y %n" {} \;
+  fi
 }
 
 # run the Go program with passed arguments
 run_go_app() {
-  exists=$(pgrep temp)
-  if [[ -n $exists ]]; then
+  # kill by recorded pid, not by name: a name match would also reap
+  # unrelated processes of the user's that happen to match.
+  if [[ -n "$app_pid" ]] && kill -0 "$app_pid" 2>/dev/null; then
     printf "🪓 Killing running Go program..."
-    if ! pkill temp; then
+    if ! kill "$app_pid" 2>/dev/null; then
       printf "failed. 🤷\n"
       return 1
     fi
+    wait "$app_pid" 2>/dev/null
     printf "dead. 💀\n"
   fi
 
@@ -102,40 +183,29 @@ run_go_app() {
   # so we can't capture the PID of the running process.
   #
   # Instead, we simulate go run with our own temp binary.
-  if ! go build -o temp "$target_dir"; then
+  if ! go build -o "$app_bin" "$target_dir"; then
     echo "❌ Binary build failed for target directory: \"$target_dir\""
     exit 1
   fi
   echo "✅ Binary is built!"
-
-  # listen for a SIGINT (ctrl-c) and cancel when received
-  trap 'echo; 
-    line_break 🚧;
-    printf "⛔ Cancelling...\n";
-    pkill temp & exit;' INT
-
-  # cleanup temp binary on exit, regardless of cause
-  trap 'printf "🚮 Cleaning up temp binary on exit...";
-    rm -f temp;
-    printf "bye!\n"' EXIT
 
   echo "🚀 Starting Go app and watching for changes... 👀"
   line_break 🚧
 
   # echo the command being run
   if [[ -z "$*" ]]; then
-    printf "go run .\n"
+    printf "go run %s\n" "$target_dir"
   else
-    printf "go run %s\n" "$*"
+    printf "go run %s %s\n" "$target_dir" "$*"
   fi
-  ./temp "$@" &
+  "$app_bin" "$@" &
   app_pid=$!
 }
 
 # exit if the app has terminated, passing along exit code
 exit_if_done() {
-  if ! kill -0 $app_pid 2>/dev/null; then
-    wait $app_pid
+  if ! kill -0 "$app_pid" 2>/dev/null; then
+    wait "$app_pid"
     exit_code=$?
     line_break 🚧
     echo "🚫 Go app terminated ($exit_code) exiting..."
@@ -145,7 +215,7 @@ exit_if_done() {
 }
 
 # line breaks help differentiate go-run output from application output
-line_break 🚧 
+line_break 🚧
 
 # require Go
 if ! go_version=$(go version); then
