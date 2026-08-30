@@ -137,7 +137,7 @@ trap 'echo;
 # by providing a terminal-wide line break with sytlized text
 line_break() {
   local title
-  title=$(printf " %s %s %s " "$1" "$0" $VERSION "$1")
+  title=$(printf " %s %s %s %s " "$1" "$0" "$VERSION" "$1")
   local width
   # tput fails when stdout is not a terminal (piped, CI); fall back to a
   # sane width rather than failing the arithmetic below on an empty value
