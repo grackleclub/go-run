@@ -1,9 +1,5 @@
 name: Release
 
-# Bump, commit, THEN tag. The previous workflow ran on `release: published`,
-# so the tag was always created before the version bump commit landed, and
-# every tag shipped the previous version string.
-
 on:
   workflow_dispatch:
     inputs:
@@ -30,13 +26,13 @@ jobs:
     - uses: stefanzweifel/git-auto-commit-action@v5
       with:
         branch: main
-        commit_message: "bump version to ${{ inputs.version }}"
+        commit_message: "release: ${{ inputs.version }}"
 
     - name: Generate checksums
       run: sha256sum go-run > SHASUMS256.txt
 
-    # assets are what let ubi, mise, and brew install go-run; without them
-    # a consumer has to point at a raw githubusercontent URL by hand
+    # assets are what let ubi, mise, and brew install go-run;
+    # without them, a raw githubusercontent URL is required
     - name: Tag and publish release
       env:
         GH_TOKEN: ${{ github.token }}

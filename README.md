@@ -37,52 +37,31 @@ go-run version
 > `go-run` can be scoped to the project, and optimally kept in a `bin` directory, consolidated with other tools, so that it may be run as `bin/go-run`. Use the optional step of moving the script to `/usr/local/bin` to make `go-run` directly executable from anywhere.
 
 ## Use with mise
-[mise](https://mise.jdx.dev) can install `go-run` and run it as a task, so a
-fresh clone needs nothing but `mise install`:
+[mise](https://mise.jdx.dev) can manage go-run as a tool.
 
 ```toml
 [tools]
 go = "1.25"
 sqlc = "latest"
 "ubi:grackleclub/go-run" = "1.2.0"
-```
 
-Pin `go` alongside it. Tasks run with only the tools mise knows about on
-`PATH`, so a config that omits `go` leaves `go-run` unable to build.
-
-Releases before v1.2.0 published no assets, so `ubi` cannot resolve them.
-Pin those through the `http` backend instead:
-
-```toml
-[tools."http:go-run"]
-version = "1.1.6"
-url = "https://raw.githubusercontent.com/grackleclub/go-run/v{{version}}/go-run"
-```
-
-The point of running it as a task is that mise resolves the task's
-dependencies first, so generated code is regenerated before the watcher
-starts. A server whose queries come from [sqlc](https://sqlc.dev):
-
-```toml
 [tasks.sqlc]
 description = "generate query code"
 dir = "db"
 run = "sqlc generate"
 
 [tasks.dev]
-description = "regenerate queries, then serve and reload on change"
+description = "start dev server with db; reload on file changes"
 depends = ["sqlc"]
-run = "go-run"
+run = "go-run ./cmd/cli -v"
 ```
 
 `mise run dev` now regenerates, builds, serves, and restarts on every save.
 Arguments after the target directory reach your program, so
 `go-run . -port 9000` is the task equivalent of `go run . -port 9000`.
 
-> [!TIP]
-> Send `go-run`'s own output somewhere outside the directory it watches.
-> Redirecting it to a file in the tree makes each line it prints look like a
-> file change, which restarts the program, which prints another line.
+> [!NOTE]
+> .gitignored files are also ignored by `go-run`
 
 ## Demo and Testing Options
 Demo the project using the [example](./example/) module:
