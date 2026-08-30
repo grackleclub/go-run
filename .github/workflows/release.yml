@@ -10,35 +10,90 @@ on:
 permissions:
   contents: write
 
+# this job commits to main and then tags that commit; two overlapping
+# runs would race on the push
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
+
+    # the commit step below always pushes to main, so dispatching from
+    # any other ref would bump that branch and tag a commit main never
+    # sees
+    - name: Require main
+      if: github.ref != 'refs/heads/main'
+      env:
+        REF: ${{ github.ref }}
+      run: |
+        echo "Release must be dispatched from main, got: $REF" >&2
+        exit 1
 
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
+    # the input reaches the shell through the environment, never through
+    # ${{ }}: an expression is substituted into the script source before
+    # bash parses it, so a crafted version would run as code with the
+    # workflow's write-scoped token
     - name: Set version in go-run
-      run: ./update-version "${{ inputs.version }}"
+      env:
+        VERSION: ${{ inputs.version }}
+      run: ./update-version "$VERSION"
+
+    # lint the release commit here rather than relying on the
+    # push-triggered shellcheck workflow: that one fires on the commit
+    # made below, by which point this job has already published the
+    # script as an asset
+    - name: Shellcheck
+      run: |
+        shellcheck go-run
+        shellcheck update-version
 
     - uses: stefanzweifel/git-auto-commit-action@v5
       with:
         branch: main
         commit_message: "release: ${{ inputs.version }}"
 
-    - name: Generate checksums
-      run: sha256sum go-run > SHASUMS256.txt
+    # go-run is a portable shell script, so every archive below holds the
+    # same file. The per-platform names are what installers need: mise,
+    # ubi and brew pick an asset by platform-matching its NAME, then take
+    # the plain executable from inside. A single bare "go-run" asset
+    # matches no platform and is rejected outright, which is what forces
+    # consumers into a verbose per-tool override. Publishing the
+    # conventional names instead lets them write the short form:
+    #   "github:grackleclub/go-run" = "v1.2.0"
+    - name: Package release assets
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        mkdir -p dist
+        for target in \
+          x86_64-unknown-linux-gnu \
+          aarch64-unknown-linux-gnu \
+          x86_64-apple-darwin \
+          aarch64-apple-darwin
+        do
+          tar -czf "dist/go-run-$VERSION-$target.tar.gz" go-run
+        done
+        # checksums cover the bare script and every archive, and are
+        # generated from inside dist so the file lists plain names
+        cp go-run dist/go-run
+        (cd dist && sha256sum go-run ./*.tar.gz > SHASUMS256.txt)
+        ls -l dist
 
-    # assets are what let ubi, mise, and brew install go-run;
-    # without them, a raw githubusercontent URL is required
     - name: Tag and publish release
       env:
         GH_TOKEN: ${{ github.token }}
+        VERSION: ${{ inputs.version }}
       run: |
-        gh release create "${{ inputs.version }}" \
+        gh release create "$VERSION" \
           --target "$(git rev-parse HEAD)" \
-          --title "${{ inputs.version }}" \
+          --title "$VERSION" \
           --generate-notes \
-          go-run SHASUMS256.txt
+          dist/go-run dist/*.tar.gz dist/SHASUMS256.txt

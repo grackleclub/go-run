@@ -37,11 +37,33 @@ update() {
       ;;
   esac
   echo "Updating go-run..."
-  if ! curl -s "$update_target" > "$0"; then
-    echo "Failed to update go-run"
+  # Download beside "$0" and rename into place. Redirecting onto "$0"
+  # truncates the script before curl runs, and bash reads a script
+  # incrementally, so a failed transfer can leave the running shell
+  # reading a half-written file. Staging in the same directory keeps
+  # the final move a rename rather than a copy.
+  local tmp
+  if ! tmp=$(mktemp "$0.XXXXXX"); then
+    echo "Failed to stage an update next to $0"
     return 1
   fi
-  chmod +x "$0"
+  # -f, because plain curl exits 0 on an HTTP error and writes the
+  # error body: without it, a moved URL installs "404: Not Found".
+  if ! curl -fsSL "$update_target" -o "$tmp"; then
+    echo "Failed to download go-run from $update_target"
+    rm -f "$tmp"
+    return 1
+  fi
+  if ! head -n 1 "$tmp" | grep -qxF '#!/usr/bin/env bash'; then
+    echo "Downloaded file does not look like go-run"
+    rm -f "$tmp"
+    return 1
+  fi
+  if ! chmod +x "$tmp" || ! mv "$tmp" "$0"; then
+    echo "Failed to install the downloaded go-run to $0"
+    rm -f "$tmp"
+    return 1
+  fi
   echo "go-run updated"
   "$0" version
   return 0
@@ -86,7 +108,10 @@ fi
 
 # build outside the working tree so the binary neither lands in the
 # caller's repo nor trips the file watcher below
-tmp_dir=$(mktemp -d)
+if ! tmp_dir=$(mktemp -d); then
+  echo "❌ Could not create a temp directory for the build"
+  exit 1
+fi
 app_bin="$tmp_dir/app"
 
 # clean up on exit, regardless of cause.
@@ -114,7 +139,10 @@ line_break() {
   local title
   title=$(printf " %s %s %s " "$1" "$0" $VERSION "$1")
   local width
-  width=$(tput cols)
+  # tput fails when stdout is not a terminal (piped, CI); fall back to a
+  # sane width rather than failing the arithmetic below on an empty value
+  width=$(tput cols 2>/dev/null) || true
+  [[ "$width" =~ ^[0-9]+$ ]] || width=80
   local title_length=$(( ${#title} + 2 ))
   local fill_length=$(( (width - title_length) / 2 ))
   printf '%*s' "$fill_length" '' | tr ' ' '-'

@@ -9,8 +9,11 @@ set -euo pipefail
 
 version="${1:-}"
 
-if [[ -z "$version" ]]; then
-    echo "usage: update-version <version>" >&2
+# Validate before writing: this runs from the release workflow with a
+# hand-typed input, and an unchecked value would be committed and then
+# tagged. Semver with an optional pre-release suffix is all we publish.
+if [[ ! "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$ ]]; then
+    echo "usage: update-version <version>  (e.g. v1.2.0)" >&2
     exit 1
 fi
 
@@ -23,4 +26,22 @@ if grep -qxF "$new" go-run; then
 fi
 
 echo "Updating version to: $new"
-sed -i "s|^VERSION=.*$|$new|" go-run
+
+# awk, not sed: sed reads & and | in the replacement text as syntax, so a
+# version containing either would silently corrupt the line or error out.
+# awk prints the variable literally.
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+
+if ! awk -v new="$new" '
+    /^VERSION=/ { print new; found = 1; next }
+    { print }
+    END { if (!found) exit 1 }
+' go-run > "$tmp"; then
+    echo "No VERSION line found in go-run" >&2
+    exit 1
+fi
+
+chmod +x "$tmp"
+mv "$tmp" go-run
+trap - EXIT
