@@ -1,20 +1,27 @@
 #!/usr/bin/env bash
 
-current=$(git describe --tags --abbrev=0)
+# update-version writes a release version into the VERSION line of go-run.
+#
+# The version is passed in rather than discovered with `git describe`, so the
+# release workflow can bump and commit BEFORE creating the tag. Discovering it
+# from the latest tag is what left every tag holding the previous version.
 
-if [[ -z "$current" ]]; then
-    echo "No tags detected. Exiting..."
+set -euo pipefail
+
+version="${1:-}"
+
+if [[ -z "$version" ]]; then
+    echo "usage: update-version <version>" >&2
     exit 1
-else
-    echo "Tag detected: $current"
 fi
-new="VERSION=\"$current\""
+
+new="VERSION=\"$version\""
 
 # see if that version is already current in go-run
-if grep -q "$new" go-run; then
+if grep -qxF "$new" go-run; then
     echo "Version is already up to date. Exiting..."
     exit 0
 fi
 
 echo "Updating version to: $new"
-sed -i "s/^VERSION=.*$/$new/" go-run
+sed -i "s|^VERSION=.*$|$new|" go-run
