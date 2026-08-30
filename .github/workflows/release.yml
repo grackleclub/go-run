@@ -1,76 +1,58 @@
 name: Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "version to release, e.g. v1.2.0"
-        required: true
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
 
 permissions:
   contents: write
 
-# this job commits to main and then tags that commit; two overlapping
-# runs would race on the push
 concurrency:
-  group: release
+  group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
+  shellcheck:
+    uses: ./.github/workflows/shellcheck.yml
+
   release:
     runs-on: ubuntu-latest
     steps:
-
-    # the commit step below always pushes to main, so dispatching from
-    # any other ref would bump that branch and tag a commit main never
-    # sees
-    - name: Require main
-      if: github.ref != 'refs/heads/main'
-      env:
-        REF: ${{ github.ref }}
-      run: |
-        echo "Release must be dispatched from main, got: $REF" >&2
-        exit 1
 
     - name: Checkout code
       uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    # the input reaches the shell through the environment, never through
-    # ${{ }}: an expression is substituted into the script source before
-    # bash parses it, so a crafted version would run as code with the
-    # workflow's write-scoped token
-    - name: Set version in go-run
-      env:
-        VERSION: ${{ inputs.version }}
-      run: ./update-version "$VERSION"
-
-    # lint the release commit here rather than relying on the
-    # push-triggered shellcheck workflow: that one fires on the commit
-    # made below, by which point this job has already published the
-    # script as an asset
-    - name: Shellcheck
+    - name: Require main
       run: |
-        shellcheck go-run
-        shellcheck update-version
+        git fetch --quiet origin main
+        if ! git merge-base --is-ancestor HEAD origin/main; then
+          echo "Tagged commit is not on main; refusing to release" >&2
+          exit 1
+        fi
 
-    - uses: stefanzweifel/git-auto-commit-action@v5
-      with:
-        branch: main
-        commit_message: "release: ${{ inputs.version }}"
+    - name: Verify go-run matches the tag
+      env:
+        VERSION: ${{ github.ref_name }}
+      run: |
+        if ! grep -qxF "VERSION=\"$VERSION\"" go-run; then
+          echo "go-run does not carry $VERSION:" >&2
+          grep -n '^VERSION=' go-run >&2
+          echo "Fix on main with: ./update-version $VERSION" >&2
+          exit 1
+        fi
 
-    # go-run is a portable shell script, so every archive below holds the
-    # same file. The per-platform names are what installers need: mise,
-    # ubi and brew pick an asset by platform-matching its NAME, then take
+    # go-run is a portable shell script, but mise, brew, et al.
+    # pick an asset by platform-matching its NAME, then take
     # the plain executable from inside. A single bare "go-run" asset
-    # matches no platform and is rejected outright, which is what forces
-    # consumers into a verbose per-tool override. Publishing the
-    # conventional names instead lets them write the short form:
+    # matches no platform and is rejected outright. Publishing the
+    # conventional names instead allows the short form:
     #   "github:grackleclub/go-run" = "v1.2.0"
     - name: Package release assets
       env:
-        VERSION: ${{ inputs.version }}
+        VERSION: ${{ github.ref_name }}
       run: |
         mkdir -p dist
         for target in \
@@ -87,13 +69,14 @@ jobs:
         (cd dist && sha256sum go-run ./*.tar.gz > SHASUMS256.txt)
         ls -l dist
 
-    - name: Tag and publish release
+    # the tag already exists, so no --target: gh releases it as-is
+    - name: Publish release
       env:
         GH_TOKEN: ${{ github.token }}
-        VERSION: ${{ inputs.version }}
+        VERSION: ${{ github.ref_name }}
       run: |
         gh release create "$VERSION" \
-          --target "$(git rev-parse HEAD)" \
           --title "$VERSION" \
           --generate-notes \
           dist/go-run dist/*.tar.gz dist/SHASUMS256.txt
+
